@@ -39,3 +39,4 @@ python .github/scripts/changelog_manager.py release 1.0.0
 # Validate changelog format
 python .github/scripts/changelog_manager.py validate
 ```
+
