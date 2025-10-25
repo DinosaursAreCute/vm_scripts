@@ -9,11 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add Test fix: test issue: ah
+- Complete VM management system with automated changelog workflow
 
 ### Changed
 
-- Merge branch 'main' of https://github.com/DinosaursAreCute/vm_scripts
 
 ### Deprecated
 
