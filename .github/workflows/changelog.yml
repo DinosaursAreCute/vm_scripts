@@ -137,8 +137,40 @@ jobs:
             with open('Changelog.md', 'r') as f:
                 content = f.read()
 
-            # Categorize commits
-            categories = {
+            # Parse existing unreleased section
+            unreleased_pattern = r'## \[Unreleased\](.*?)(?=## \[|\Z)'
+            unreleased_match = re.search(unreleased_pattern, content, re.DOTALL)
+            
+            if not unreleased_match:
+                print("Could not find unreleased section")
+                return False
+            
+            existing_unreleased = unreleased_match.group(1)
+            
+            # Parse existing categories and their entries
+            existing_categories = {
+                'Added': [],
+                'Changed': [],
+                'Deprecated': [],
+                'Removed': [],
+                'Fixed': [],
+                'Security': []
+            }
+            
+            for category in existing_categories.keys():
+                # Find existing entries for this category
+                category_pattern = rf'### {category}\s*\n(.*?)(?=### |\Z)'
+                category_match = re.search(category_pattern, existing_unreleased, re.DOTALL)
+                if category_match:
+                    category_content = category_match.group(1).strip()
+                    if category_content:
+                        # Extract existing bullet points
+                        existing_entries = [line.strip() for line in category_content.split('\n') 
+                                          if line.strip() and line.strip().startswith('- ')]
+                        existing_categories[category] = existing_entries
+
+            # Categorize new commits
+            new_categories = {
                 'Added': [],
                 'Changed': [],
                 'Deprecated': [],
@@ -151,18 +183,26 @@ jobs:
                 category = categorize_commit(commit)
                 clean_message = clean_commit_message(commit)
                 if clean_message:  # Only add non-empty messages
-                    categories[category].append(f"- {clean_message}")
+                    new_entry = f"- {clean_message}"
+                    # Avoid duplicates
+                    if new_entry not in existing_categories[category]:
+                        new_categories[category].append(new_entry)
 
-            # Check if we have any changes to add
-            has_changes = any(categories.values())
-            if not has_changes:
-                print("No meaningful changes to add to changelog")
+            # Check if we have any new changes to add
+            has_new_changes = any(new_categories.values())
+            if not has_new_changes:
+                print("No new meaningful changes to add to changelog")
                 return False
+
+            # Merge existing and new entries
+            merged_categories = {}
+            for category in existing_categories.keys():
+                merged_categories[category] = existing_categories[category] + new_categories[category]
 
             # Build new unreleased section
             new_section = "## [Unreleased]\n\n"
             
-            for category, items in categories.items():
+            for category, items in merged_categories.items():
                 new_section += f"### {category}\n\n"
                 if items:
                     new_section += '\n'.join(items) + '\n\n'
