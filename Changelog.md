@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Merge branch 'main' of https://github.com/DinosaursAreCute/vm_scripts
 
 ### Deprecated
 
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- - fix: workflow overwriting existing changelog entries
 
 ### Security
 
