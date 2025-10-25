@@ -1,0 +1,227 @@
+name: Update Changelog
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install PyYAML requests
+
+    - name: Update Changelog
+      run: |
+        python << 'EOF'
+        import re
+        import subprocess
+        import os
+        from datetime import datetime
+
+        def get_commit_messages():
+            """Get commit messages since last changelog update"""
+            try:
+                # Get the last commit that modified the changelog
+                result = subprocess.run(
+                    ['git', 'log', '-n', '1', '--pretty=format:%H', '--', 'Changelog.md'],
+                    capture_output=True, text=True, check=True
+                )
+                last_changelog_commit = result.stdout.strip()
+                
+                if last_changelog_commit:
+                    # Get commits since last changelog update
+                    result = subprocess.run(
+                        ['git', 'log', f'{last_changelog_commit}..HEAD', '--pretty=format:%s', '--reverse'],
+                        capture_output=True, text=True, check=True
+                    )
+                else:
+                    # If no previous changelog commits, get all commits
+                    result = subprocess.run(
+                        ['git', 'log', '--pretty=format:%s', '--reverse'],
+                        capture_output=True, text=True, check=True
+                    )
+                
+                messages = [msg.strip() for msg in result.stdout.strip().split('\n') if msg.strip()]
+                # Filter out changelog update commits to avoid recursion
+                messages = [msg for msg in messages if not msg.lower().startswith('update changelog')]
+                return messages
+            except subprocess.CalledProcessError:
+                return []
+
+        def categorize_commit(message):
+            """Categorize commit message based on conventional commits or keywords"""
+            message_lower = message.lower()
+            
+            # Conventional Commits patterns
+            if re.match(r'^feat(\(.+\))?:', message_lower):
+                return 'Added'
+            elif re.match(r'^fix(\(.+\))?:', message_lower):
+                return 'Fixed'
+            elif re.match(r'^docs(\(.+\))?:', message_lower):
+                return 'Changed'
+            elif re.match(r'^style(\(.+\))?:', message_lower):
+                return 'Changed'
+            elif re.match(r'^refactor(\(.+\))?:', message_lower):
+                return 'Changed'
+            elif re.match(r'^test(\(.+\))?:', message_lower):
+                return 'Changed'
+            elif re.match(r'^chore(\(.+\))?:', message_lower):
+                return 'Changed'
+            elif re.match(r'^perf(\(.+\))?:', message_lower):
+                return 'Changed'
+            elif re.match(r'^build(\(.+\))?:', message_lower):
+                return 'Changed'
+            elif re.match(r'^ci(\(.+\))?:', message_lower):
+                return 'Changed'
+            elif re.match(r'^revert(\(.+\))?:', message_lower):
+                return 'Fixed'
+            
+            # Keyword-based categorization
+            elif any(word in message_lower for word in ['add', 'new', 'create', 'implement', 'introduce']):
+                return 'Added'
+            elif any(word in message_lower for word in ['fix', 'bug', 'issue', 'patch', 'solve', 'resolve']):
+                return 'Fixed'
+            elif any(word in message_lower for word in ['remove', 'delete', 'drop']):
+                return 'Removed'
+            elif any(word in message_lower for word in ['deprecate', 'obsolete']):
+                return 'Deprecated'
+            elif any(word in message_lower for word in ['security', 'vulnerability', 'cve']):
+                return 'Security'
+            else:
+                return 'Changed'
+
+        def clean_commit_message(message):
+            """Clean up commit message for changelog entry"""
+            # Remove conventional commit prefixes
+            message = re.sub(r'^(feat|fix|docs|style|refactor|test|chore|perf|build|ci|revert)(\(.+\))?:\s*', '', message)
+            
+            # Capitalize first letter
+            if message:
+                message = message[0].upper() + message[1:]
+            
+            return message
+
+        def update_changelog():
+            """Update the changelog with new commit messages"""
+            commits = get_commit_messages()
+            
+            if not commits:
+                print("No new commits to add to changelog")
+                return False
+
+            print(f"Found {len(commits)} new commits to add to changelog")
+            
+            # Read current changelog
+            with open('Changelog.md', 'r') as f:
+                content = f.read()
+
+            # Categorize commits
+            categories = {
+                'Added': [],
+                'Changed': [],
+                'Deprecated': [],
+                'Removed': [],
+                'Fixed': [],
+                'Security': []
+            }
+
+            for commit in commits:
+                category = categorize_commit(commit)
+                clean_message = clean_commit_message(commit)
+                if clean_message:  # Only add non-empty messages
+                    categories[category].append(f"- {clean_message}")
+
+            # Check if we have any changes to add
+            has_changes = any(categories.values())
+            if not has_changes:
+                print("No meaningful changes to add to changelog")
+                return False
+
+            # Build new unreleased section
+            new_section = "## [Unreleased]\n\n"
+            
+            for category, items in categories.items():
+                new_section += f"### {category}\n\n"
+                if items:
+                    new_section += '\n'.join(items) + '\n\n'
+                else:
+                    new_section += '\n'
+
+            # Replace the unreleased section
+            pattern = r'## \[Unreleased\].*?(?=## \[|\Z)'
+            updated_content = re.sub(pattern, new_section, content, flags=re.DOTALL)
+
+            # Write updated changelog
+            with open('Changelog.md', 'w') as f:
+                f.write(updated_content)
+
+            print("Changelog updated successfully")
+            return True
+
+        # Run the update
+        if update_changelog():
+            print("::set-output name=updated::true")
+        else:
+            print("::set-output name=updated::false")
+        EOF
+
+    - name: Commit changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        if git diff --exit-code Changelog.md; then
+          echo "No changes to commit"
+        else
+          git add Changelog.md
+          git commit -m "Update changelog with recent commits
+
+          [skip ci]"
+          git push
+        fi
+
+  check-changelog:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Check if changelog should be updated
+      run: |
+        echo "::notice::This PR will trigger a changelog update when merged to main"
+        
+        # Get PR commits
+        commits=$(git log --pretty=format:"%s" origin/main..HEAD)
+        echo "Commits in this PR:"
+        echo "$commits"
+        
+        # Check if any commits warrant changelog entries
+        meaningful_commits=$(echo "$commits" | grep -vE "^(update changelog|merge |Merge )" | head -5)
+        if [ -n "$meaningful_commits" ]; then
+          echo "::notice::The following commits will be added to the changelog:"
+          echo "$meaningful_commits"
+        else
+          echo "::notice::No meaningful commits found for changelog update"
+        fi
