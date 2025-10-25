@@ -11,6 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
+    permissions:
+      contents: write
+      pull-requests: read
+    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -185,8 +189,8 @@ jobs:
 
     - name: Commit changes
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
         
         if git diff --exit-code Changelog.md; then
           echo "No changes to commit"
@@ -195,7 +199,7 @@ jobs:
           git commit -m "Update changelog with recent commits
 
           [skip ci]"
-          git push
+          git push origin main
         fi
 
   check-changelog:

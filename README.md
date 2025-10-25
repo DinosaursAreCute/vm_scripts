@@ -27,21 +27,15 @@ This repository uses automated changelog generation based on commit messages. Th
 - Keywords like "security", "vulnerability" → **Security** section
 
 ### Manual Changelog Management
-Use the `changelog_manager.py` script for manual entries:
+Use the `changelog_manager.py` script located in `.github/scripts/` for manual entries:
 
 ```bash
 # Add a new entry
-python changelog_manager.py add added "New feature for VM status checking"
+python .github/scripts/changelog_manager.py add added "New feature for VM status checking"
 
 # Create a release
-python changelog_manager.py release 1.0.0
+python .github/scripts/changelog_manager.py release 1.0.0
 
 # Validate changelog format
-python changelog_manager.py validate
+python .github/scripts/changelog_manager.py validate
 ```
-
-### Best Practices
-- Use descriptive commit messages
-- Follow conventional commit format when possible
-- Review generated changelog entries before releases
-- The automation runs on every push to main and creates PR comments
