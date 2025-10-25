@@ -9,12 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+
 ### Changed
+
+- Move workflow scripts into workflow/scripts directory
 
 ### Deprecated
 
+
 ### Removed
+
 
 ### Fixed
 
+
 ### Security
+
+
