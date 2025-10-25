@@ -40,3 +40,4 @@ python .github/scripts/changelog_manager.py release 1.0.0
 python .github/scripts/changelog_manager.py validate
 ```
 
+## DINOSAURS ARE CUTE
